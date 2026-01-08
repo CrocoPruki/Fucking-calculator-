@@ -9,7 +9,8 @@
   "postCreateCommand": "cd trading_watch_app && flutter pub get",
   "forwardPorts": [8080],
   "extensions": [
-    "Dart-Code.flutter"
+    "Dart-Code.flutter",
+    "GitHub.copilot-chat"
   ],
   "remoteUser": "vscode"
 }
