@@ -1,0 +1,15 @@
+{
+  "name": "Trading Watch - Flutter",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspaces/Fucking-calculator-/trading_watch_app",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/Fucking-calculator-,type=bind,consistency=cached",
+  "postCreateCommand": "cd trading_watch_app && flutter pub get",
+  "forwardPorts": [8080],
+  "extensions": [
+    "Dart-Code.flutter"
+  ],
+  "remoteUser": "vscode"
+}
