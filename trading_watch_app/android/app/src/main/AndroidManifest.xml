@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Wsparcie dla Wear OS -->
+    <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
     <application
         android:label="trading_watch_app"
         android:name="${applicationName}"
@@ -23,6 +29,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <!-- Dodatkowa kategoria dla Wear OS -->
+                <category android:name="com.google.android.wearable.standalone"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
