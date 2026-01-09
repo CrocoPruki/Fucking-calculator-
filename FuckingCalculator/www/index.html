@@ -94,58 +94,40 @@
 
   </div>
 
-const leverages = [1,1.8,2,3,5,8,10,20,50,100];
+  <script>
+function calculate() {
+  const leverages = [1,1.8,2,3,5,8,10,20,50,100];
 
   const capital = parseFloat(document.getElementById('capital').value);
-
   const riskPercent = parseFloat(document.getElementById('risk').value);
-
   const stopPercent = parseFloat(document.getElementById('stop').value);
 
   if (isNaN(capital) || isNaN(riskPercent) || isNaN(stopPercent)) {
-
     document.getElementById('result').innerText = 'Wprowadź wszystkie wartości';
-
     document.getElementById('warn').innerText = '';
-
     return;
-
   }
 
   let bestLeverage = 1;
-
   let minDiff = Infinity;
-
   let bestActual = 0;
 
   for (let l of leverages) {
-
     const actual = l * stopPercent;
-
     const diff = Math.abs(actual - riskPercent);
-
     if (diff < minDiff) {
-
       minDiff = diff;
-
       bestLeverage = l;
-
       bestActual = actual;
-
     }
-
   }
 
   const riskDollar = (bestActual / 100) * capital;
-
   document.getElementById('result').innerText = `Najlepsza dźwignia: ${bestLeverage}x\nRyzyko: ${bestActual.toFixed(2)}%\nRyzyko $: ${riskDollar.toFixed(2)}$`;
-
   document.getElementById('warn').innerText = minDiff > 0 ? `Przybliżone, dokładne ryzyko: ${bestActual.toFixed(2)}%` : '';
-
 }
 
 document.querySelector('button').addEventListener('click', calculate);
-
 </script>
 
 </body>
