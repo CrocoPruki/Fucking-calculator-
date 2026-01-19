@@ -9,8 +9,10 @@ import 'package:http/http.dart' as http;
 const String kBuildTag = 'wear-ui+calc+chartfix+alerts (2026-01-19)';
 
 // Default market for both chart and alerts.
-const String kBitgetSymbol = 'BTCUSDC';
+// Bitget USDC perpetual uses symbols like BTCPERP (not BTCUSDC).
+const String kBitgetSymbol = 'BTCPERP';
 const String kBitgetProductType = 'usdc-futures';
+const String kDisplaySymbol = 'BTC-PERP (USDC)';
 
 void main() {
   runApp(const MyApp());
@@ -141,8 +143,8 @@ class _WatchAppState extends State<WatchApp> {
           _alertPrice = null;
         });
         _showNotification(
-          '$kBitgetSymbol Alert Hit',
-          '$kBitgetSymbol price: \$${current.toStringAsFixed(2)} (target: \$${alertPrice.toStringAsFixed(2)})',
+          '$kDisplaySymbol Alert Hit',
+          '$kDisplaySymbol price: \$${current.toStringAsFixed(2)} (target: \$${alertPrice.toStringAsFixed(2)})',
         );
       }
     } catch (_) {
