@@ -8,6 +8,10 @@ import 'package:http/http.dart' as http;
 
 const String kBuildTag = 'wear-ui+calc+chartfix+alerts (2026-01-19)';
 
+// Default market for both chart and alerts.
+const String kBitgetSymbol = 'BTCUSDC';
+const String kBitgetProductType = 'usdc-futures';
+
 void main() {
   runApp(const MyApp());
 }
@@ -119,7 +123,7 @@ class _WatchAppState extends State<WatchApp> {
 
     try {
       final uri = Uri.parse(
-        'https://api.bitget.com/api/v2/mix/market/ticker?symbol=BTCUSDT&productType=usdt-futures',
+        'https://api.bitget.com/api/v2/mix/market/ticker?symbol=$kBitgetSymbol&productType=$kBitgetProductType',
       );
       final response = await http.get(uri).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) return;
@@ -137,8 +141,8 @@ class _WatchAppState extends State<WatchApp> {
           _alertPrice = null;
         });
         _showNotification(
-          'BTC Alert Hit',
-          'BTC price: \$${current.toStringAsFixed(2)} (target: \$${alertPrice.toStringAsFixed(2)})',
+          '$kBitgetSymbol Alert Hit',
+          '$kBitgetSymbol price: \$${current.toStringAsFixed(2)} (target: \$${alertPrice.toStringAsFixed(2)})',
         );
       }
     } catch (_) {
@@ -527,10 +531,11 @@ class _BitcoinChartState extends State<BitcoinChart> {
   }
   
   void _startAutoRefresh() {
-    // Auto-refresh co 60 sekund when successful, 10 sekund when error
+    // Auto-refresh without any button.
     Future.doWhile(() async {
       if (!mounted) return false;
-      final delaySeconds = _candles.isEmpty ? 10 : 60;
+      // Faster refresh on a watch.
+      final delaySeconds = _candles.isEmpty ? 10 : 15;
       await Future.delayed(Duration(seconds: delaySeconds));
       if (mounted) {
         _fetchBitgetData();
@@ -588,8 +593,8 @@ class _BitcoinChartState extends State<BitcoinChart> {
   }
 
   Future<void> _fetchBitgetData() async {
-    const endpoint =
-        'https://api.bitget.com/api/v2/mix/market/candles?symbol=BTCUSDT&granularity=1H&limit=32&productType=usdt-futures';
+    final endpoint =
+      'https://api.bitget.com/api/v2/mix/market/candles?symbol=$kBitgetSymbol&granularity=1H&limit=32&productType=$kBitgetProductType';
     final uri = Uri.parse(endpoint);
 
     try {
