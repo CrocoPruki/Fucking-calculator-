@@ -516,7 +516,14 @@ class _BitcoinChartState extends State<BitcoinChart> {
   List<double> _ema20 = [];
   int _minutesToClose = 0;
   Timer? _countdownTimer;
+  Timer? _refreshTimer;
   String? _errorMessage;
+
+  // Timeframes you care about.
+  static const String _tf1D = '1D';
+  static const String _tf1H = '1H';
+  static const String _tf5m = '5m';
+  String _granularity = _tf1H;
 
   static const String _apiKey = String.fromEnvironment('BITGET_API_KEY', defaultValue: '');
   static const String _apiSecret = String.fromEnvironment('BITGET_API_SECRET', defaultValue: '');
@@ -531,23 +538,29 @@ class _BitcoinChartState extends State<BitcoinChart> {
   }
   
   void _startAutoRefresh() {
-    // Auto-refresh without any button.
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      // Faster refresh on a watch.
-      final delaySeconds = _candles.isEmpty ? 10 : 15;
-      await Future.delayed(Duration(seconds: delaySeconds));
-      if (mounted) {
-        _fetchBitgetData();
-        return true;
-      }
-      return false;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_autoRefreshPeriod(), (_) {
+      if (!mounted) return;
+      _fetchBitgetData();
     });
+  }
+
+  Duration _autoRefreshPeriod() {
+    if (_candles.isEmpty) return const Duration(seconds: 10);
+    switch (_granularity) {
+      case _tf1D:
+        return const Duration(seconds: 60);
+      case _tf5m:
+      case _tf1H:
+      default:
+        return const Duration(seconds: 15);
+    }
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -565,7 +578,17 @@ class _BitcoinChartState extends State<BitcoinChart> {
     final now = DateTime.now().toUtc();
     final minuteInHour = now.minute;
     setState(() {
-      _minutesToClose = 59 - minuteInHour;
+      if (_granularity == _tf5m) {
+        final mod = minuteInHour % 5;
+        _minutesToClose = (4 - mod).clamp(0, 4);
+      } else if (_granularity == _tf1D) {
+        // Minutes to next UTC day boundary.
+        final minutesToday = now.hour * 60 + now.minute;
+        _minutesToClose = (1439 - minutesToday).clamp(0, 1439);
+      } else {
+        // 1H
+        _minutesToClose = 59 - minuteInHour;
+      }
     });
   }
 
@@ -594,7 +617,7 @@ class _BitcoinChartState extends State<BitcoinChart> {
 
   Future<void> _fetchBitgetData() async {
     final endpoint =
-      'https://api.bitget.com/api/v2/mix/market/candles?symbol=$kBitgetSymbol&granularity=1H&limit=32&productType=$kBitgetProductType';
+        'https://api.bitget.com/api/v2/mix/market/candles?symbol=$kBitgetSymbol&granularity=$_granularity&limit=32&productType=$kBitgetProductType';
     final uri = Uri.parse(endpoint);
 
     try {
@@ -688,6 +711,18 @@ class _BitcoinChartState extends State<BitcoinChart> {
         _loadSampleData();
       }
     }
+  }
+
+  void _setTimeframe(String granularity) {
+    if (_granularity == granularity) return;
+    setState(() {
+      _granularity = granularity;
+      _loading = true;
+      _errorMessage = null;
+    });
+    _updateCountdown();
+    _startAutoRefresh();
+    _fetchBitgetData();
   }
 
   void _loadSampleData() {
@@ -805,6 +840,41 @@ class _BitcoinChartState extends State<BitcoinChart> {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
+              ),
+            ),
+          ),
+
+          // Timeframe toggle
+          Positioned(
+            top: 42,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.45),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TfChip(
+                    label: '1D',
+                    selected: _granularity == _tf1D,
+                    onTap: () => _setTimeframe(_tf1D),
+                  ),
+                  const SizedBox(width: 4),
+                  _TfChip(
+                    label: '1H',
+                    selected: _granularity == _tf1H,
+                    onTap: () => _setTimeframe(_tf1H),
+                  ),
+                  const SizedBox(width: 4),
+                  _TfChip(
+                    label: '5m',
+                    selected: _granularity == _tf5m,
+                    onTap: () => _setTimeframe(_tf5m),
+                  ),
+                ],
               ),
             ),
           ),
@@ -974,6 +1044,41 @@ class CandlestickPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return true;
+  }
+}
+
+class _TfChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TfChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withOpacity(0.95) : Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: selected ? Colors.black : Colors.white,
+          ),
+        ),
+      ),
+    );
   }
 }
 
