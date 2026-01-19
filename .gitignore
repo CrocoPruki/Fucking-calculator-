@@ -14,3 +14,4 @@ WEAR_OS_BUILD_INSTRUCTIONS.md
 # Flutter build outputs
 **/build/
 FuckingCalculator/cmdline-tools.zip
+FuckingCalculator/*.zip
