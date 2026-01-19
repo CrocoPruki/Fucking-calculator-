@@ -51,6 +51,9 @@ class _WatchAppState extends State<WatchApp> {
   double? _alertPrice;
   bool _alertTriggerAbove = true;
 
+  double? _lastSeenPrice;
+  int? _lastSeenPriceTsMs;
+
   @override
   void initState() {
     super.initState();
@@ -121,7 +124,7 @@ class _WatchAppState extends State<WatchApp> {
 
   Future<void> _pollAlert() async {
     final alertPrice = _alertPrice;
-    if (alertPrice == null) return;
+    // We still poll the ticker even without an active alert so the Alerts screen can show the last price.
 
     try {
       final uri = Uri.parse(
@@ -136,6 +139,20 @@ class _WatchAppState extends State<WatchApp> {
       final lastPr = list.first['lastPr'];
       final current = double.tryParse(lastPr.toString());
       if (current == null) return;
+
+      final ts = int.tryParse(list.first['ts']?.toString() ?? '') ?? DateTime.now().millisecondsSinceEpoch;
+      final shouldUpdate = _lastSeenPrice == null || (current - _lastSeenPrice!).abs() > 0.01;
+      if (shouldUpdate && mounted) {
+        setState(() {
+          _lastSeenPrice = current;
+          _lastSeenPriceTsMs = ts;
+        });
+      } else {
+        _lastSeenPrice = current;
+        _lastSeenPriceTsMs = ts;
+      }
+
+      if (alertPrice == null) return;
 
       final triggered = _alertTriggerAbove ? current >= alertPrice : current <= alertPrice;
       if (triggered) {
@@ -195,11 +212,13 @@ class _WatchAppState extends State<WatchApp> {
                       _setAlert(price, triggerAbove: triggerAbove);
                       _showNotification(
                         'Alert Set',
-                        'BTC alert ${triggerAbove ? 'above' : 'below'} \$${price.toStringAsFixed(2)}',
+                        '$kDisplaySymbol alert ${triggerAbove ? 'above' : 'below'} \$${price.toStringAsFixed(2)}',
                       );
                     },
                     onClearAlert: _clearAlert,
                     getCurrentAlert: () => _alertPrice,
+                    getLastPrice: () => _lastSeenPrice,
+                    marketLabel: kDisplaySymbol,
                   ),
                 ),
               ),
@@ -1088,12 +1107,16 @@ class AlertSettings extends StatefulWidget {
   final void Function(double price, bool triggerAbove) onSetAlert;
   final VoidCallback onClearAlert;
   final double? Function() getCurrentAlert;
+  final double? Function() getLastPrice;
+  final String marketLabel;
 
   const AlertSettings({
     super.key,
     required this.onSetAlert,
     required this.onClearAlert,
     required this.getCurrentAlert,
+    required this.getLastPrice,
+    required this.marketLabel,
   });
 
   @override
@@ -1103,6 +1126,14 @@ class AlertSettings extends StatefulWidget {
 class _AlertSettingsState extends State<AlertSettings> {
   final TextEditingController _priceController = TextEditingController();
   bool _triggerAbove = true;
+
+  void _useLastPrice() {
+    final last = widget.getLastPrice();
+    if (last == null) return;
+    setState(() {
+      _priceController.text = last.toStringAsFixed(2);
+    });
+  }
 
   void _setAlert() {
     double price = double.tryParse(_priceController.text) ?? 0;
@@ -1123,7 +1154,34 @@ class _AlertSettingsState extends State<AlertSettings> {
               'Price Alerts',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 6),
+            Text(
+              widget.marketLabel,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 20),
+            Builder(
+              builder: (context) {
+                final last = widget.getLastPrice();
+                if (last == null) return const SizedBox.shrink();
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Last: \$${last.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.green),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: _useLastPrice,
+                      child: const Text('USE LAST'),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 10),
             TextField(
               controller: _priceController,
               decoration: const InputDecoration(
