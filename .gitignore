@@ -1,0 +1,15 @@
+# Repo-level ignores (to avoid committing built artifacts)
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# VS Code / workspace files
+*.code-workspace
+**/.vscode/
+
+# Local notes
+WEAR_OS_BUILD_INSTRUCTIONS.md
+
+# Flutter build outputs
+**/build/
