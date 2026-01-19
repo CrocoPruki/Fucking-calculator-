@@ -48,21 +48,31 @@ class _WatchAppState extends State<WatchApp> {
   @override
   void initState() {
     super.initState();
-    _initializeNotifications();
+    // Avoid crashing the whole app if notifications init fails on some Wear/Android builds.
+    Future.microtask(() async {
+      try {
+        await _initializeNotifications();
+      } catch (_) {
+        // Silent: app should still run without notifications.
+      }
+    });
     _startAlertPolling();
   }
 
-  void _initializeNotifications() {
+  Future<void> _initializeNotifications() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-    flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-      ?.requestNotificationsPermission();
+    try {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    } catch (_) {
+      // Some devices/OS versions may throw here.
+    }
   }
 
   void _showNotification(String title, String body) async {
@@ -578,7 +588,8 @@ class _BitcoinChartState extends State<BitcoinChart> {
   }
 
   Future<void> _fetchBitgetData() async {
-    const endpoint = 'https://api.bitget.com/api/v2/mix/market/candles?symbol=BTCUSDT&granularity=1H&limit=32&productType=usdt-futures';
+    const endpoint =
+        'https://api.bitget.com/api/v2/mix/market/candles?symbol=BTCUSDT&granularity=1H&limit=32&productType=usdt-futures';
     final uri = Uri.parse(endpoint);
 
     try {
@@ -596,20 +607,35 @@ class _BitcoinChartState extends State<BitcoinChart> {
           
           if (mounted) {
             setState(() {
-              // Odwróć kolejność żeby najnowsze były na końcu
-              _candles = candles.reversed.toList().asMap().entries.map((entry) {
-                int idx = entry.key;
-                List<dynamic> candle = entry.value;
-                // Bitget format: [timestamp, open, high, low, close, volume, ...]
-                return CandleData(
-                  idx.toDouble(),
-                  double.parse(candle[1].toString()),
-                  double.parse(candle[2].toString()),
-                  double.parse(candle[3].toString()),
-                  double.parse(candle[4].toString()),
-                  int.parse(candle[0].toString()),
+              // Bitget sometimes returns candles newest-first; sometimes oldest-first.
+              // Sort by timestamp to keep the trend direction correct.
+              final parsed = <CandleData>[];
+              for (final row in candles) {
+                if (row is! List || row.length < 5) continue;
+                parsed.add(
+                  CandleData(
+                    0,
+                    double.parse(row[1].toString()),
+                    double.parse(row[2].toString()),
+                    double.parse(row[3].toString()),
+                    double.parse(row[4].toString()),
+                    int.parse(row[0].toString()),
+                  ),
                 );
-              }).toList();
+              }
+              parsed.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+              _candles = List.generate(parsed.length, (i) {
+                final c = parsed[i];
+                return CandleData(
+                  i.toDouble(),
+                  c.open,
+                  c.high,
+                  c.low,
+                  c.close,
+                  c.timestamp,
+                );
+              });
               
               // Pobierz bieżącą cenę (ostatnia cena close)
               if (_candles.isNotEmpty) {
